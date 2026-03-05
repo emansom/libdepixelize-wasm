@@ -1,3 +1,2 @@
-export default function createDepixelizeModule(
-  config?: Record<string, unknown>
-): Promise<Record<string, unknown>>;
+declare function createDepixelizeModule(): Promise<Record<string, unknown>>;
+export default createDepixelizeModule;

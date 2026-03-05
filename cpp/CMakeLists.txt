@@ -13,16 +13,24 @@ if(NOT DEFINED VENDOR_DIR)
 endif()
 
 # --- 1. double-conversion ---
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-add_subdirectory(${VENDOR_DIR}/double-conversion dc-build EXCLUDE_FROM_ALL)
+if(NOT EMSCRIPTEN)
+    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${VENDOR_DIR}/double-conversion dc-build EXCLUDE_FROM_ALL)
 
-# The vendored CMakeLists creates a malformed alias (double-conversion::::double-conversion).
-# Create the correct alias that lib2geom expects.
-if(NOT TARGET double-conversion::double-conversion)
-    add_library(double-conversion::double-conversion ALIAS double-conversion)
+    # The vendored CMakeLists creates a malformed alias (double-conversion::::double-conversion).
+    # Create the correct alias that lib2geom expects.
+    if(NOT TARGET double-conversion::double-conversion)
+        add_library(double-conversion::double-conversion ALIAS double-conversion)
+    endif()
+else()
+    # Emscripten: coord.cpp + svg-path-writer.cpp excluded — no double-conversion needed
+    add_library(dc_stub INTERFACE)
+    add_library(double-conversion::double-conversion ALIAS dc_stub)
+    install(TARGETS dc_stub EXPORT 2geom_targets)  # satisfy lib2geom's install(EXPORT)
 endif()
 
 # --- 2. GSL (ampl/gsl fork with CMake) ---
+# GSL is needed by lib2geom's basic-intersection.cpp (called via virtual methods)
 set(NO_AMPL_BINDINGS ON CACHE BOOL "" FORCE)
 set(GSL_DISABLE_TESTS ON CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -82,6 +90,8 @@ set(WASM_COMMON_LINK_FLAGS
     "-sTEXTDECODER=2"
     "-sEXPORTED_RUNTIME_METHODS=['HEAPU8']"
     "-sUSE_BOOST_HEADERS=1"
+    "-sEMIT_PRODUCERS_SECTION=0"
+    "--closure=1"
 )
 set(WASM_COMMON_COMPILE_FLAGS
     "-Oz"

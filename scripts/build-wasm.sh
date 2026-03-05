@@ -125,6 +125,42 @@ apply_patch() {
 
 apply_patch "$VENDOR_TMP/lib2geom" "$CPP_DIR/patches/lib2geom-emscripten.patch"
 
+# Strip unused lib2geom sources for Emscripten (intersection, ellipse, conic,
+# SVG parser/writer, coord formatting — only used by code paths we don't need).
+# Wraps excluded sources in if(NOT EMSCRIPTEN) so they're only built natively.
+LIB2GEOM_CMAKE="$VENDOR_TMP/lib2geom/src/2geom/CMakeLists.txt"
+# Conservative list: only files with no virtual method references and no
+# symbols transitively needed by BezierCurve/Path. Keep basic-intersection,
+# nearest-time, solve-bezier*, polynomial, bezier-clipping, crossing, etc.
+EXCLUDED_SOURCES=(
+    circle.cpp
+    conicsec.cpp
+    conic_section_clipper_impl.cpp
+    coord.cpp
+    ellipse.cpp
+    elliptical-arc.cpp
+    elliptical-arc-from-sbasis.cpp
+    geometric-intersection.cpp
+    intersection-graph.cpp
+    parallelogram.cpp
+    parting-point.cpp
+    path-extrema.cpp
+    path-intersection.cpp
+    sbasis-2d.cpp
+    sbasis-geometric.cpp
+    self-intersect.cpp
+    svg-path-writer.cpp
+    sweep-bounds.cpp
+)
+for src in "${EXCLUDED_SOURCES[@]}"; do
+    # Remove the source file line (with optional leading whitespace and trailing whitespace/newline)
+    sed -i "\|^[[:space:]]*${src}[[:space:]]*$|d" "$LIB2GEOM_CMAKE"
+done
+# Also remove the SVG parser generated file line from target_sources
+# (match only standalone lines, not the add_custom_command block)
+sed -i '/^[[:space:]]*\${CMAKE_CURRENT_BINARY_DIR}\/\${SVG_PARSER_CPP}[[:space:]]*$/d' "$LIB2GEOM_CMAKE"
+echo "  Stripped $(( ${#EXCLUDED_SOURCES[@]} + 1 )) unused lib2geom sources"
+
 # Configure
 echo "--- Configuring ---"
 rm -rf "$BUILD_DIR"

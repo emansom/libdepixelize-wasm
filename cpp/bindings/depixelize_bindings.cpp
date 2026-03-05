@@ -1,11 +1,44 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 #include <depixelize/depixelize.h>
-#include <2geom/svg-path-writer.h>
+#include <2geom/pathvector.h>
+#include <2geom/bezier-curve.h>
 #include <string>
 #include <sstream>
 #include <cstdint>
+#include <cstdio>
 #include <iomanip>
+
+// Minimal SVG path serializer — only handles the two curve types
+// libdepixelize produces (LineSegment and QuadraticBezier).
+// Replaces Geom::write_svg_path() to avoid pulling in svg-path-writer.cpp,
+// coord.cpp, and the double-conversion library.
+static std::string path_to_svg(const Geom::PathVector& pv) {
+    std::string out;
+    out.reserve(256);
+    char buf[64];
+    auto append_point = [&](Geom::Point const& p) {
+        int n = snprintf(buf, sizeof(buf), "%g,%g", p[0], p[1]);
+        out.append(buf, n);
+    };
+    for (const auto& path : pv) {
+        out += 'M';
+        append_point(path.initialPoint());
+        for (const auto& curve : path) {
+            if (auto* line = dynamic_cast<const Geom::LineSegment*>(&curve)) {
+                out += 'L';
+                append_point((*line)[1]);
+            } else if (auto* quad = dynamic_cast<const Geom::QuadraticBezier*>(&curve)) {
+                out += 'Q';
+                append_point((*quad)[1]);
+                out += ' ';
+                append_point((*quad)[2]);
+            }
+        }
+        if (path.closed()) out += 'Z';
+    }
+    return out;
+}
 
 static std::string rgba_to_hex(const uint8_t rgba[4]) {
     std::ostringstream ss;
@@ -59,7 +92,7 @@ static std::string depixelize(
         << "height=\"" << splines.height() << "\">\n";
 
     for (const auto& path : splines) {
-        std::string d = Geom::write_svg_path(path.pathVector);
+        std::string d = path_to_svg(path.pathVector);
         if (d.empty()) continue;
 
         std::string fill = rgba_to_hex(path.rgba);
