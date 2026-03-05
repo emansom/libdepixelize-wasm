@@ -1,0 +1,20 @@
+[submodule "cpp/vendor/gsl"]
+	path = cpp/vendor/gsl
+	url = https://github.com/ampl/gsl.git
+	branch = master
+	shallow = true
+[submodule "cpp/vendor/lib2geom"]
+	path = cpp/vendor/lib2geom
+	url = https://gitlab.com/inkscape/lib2geom.git
+	branch = master
+	shallow = true
+[submodule "cpp/vendor/libdepixelize"]
+	path = cpp/vendor/libdepixelize
+	url = https://gitlab.com/inkscape/devel/libdepixelize.git
+	branch = master
+	shallow = true
+[submodule "cpp/vendor/double-conversion"]
+	path = cpp/vendor/double-conversion
+	url = https://github.com/google/double-conversion.git
+	branch = master
+	shallow = true

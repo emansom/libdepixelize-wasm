@@ -1,0 +1,78 @@
+{
+  "name": "libdepixelize-wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly bindings for libdepixelize — Kopf-Lischinski pixel art vectorization",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "deno": {
+        "import": "./dist/index.deno.js",
+        "types": "./dist/index.deno.d.ts"
+      },
+      "node": {
+        "import": "./dist/index.node.js",
+        "types": "./dist/index.node.d.ts"
+      },
+      "default": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      }
+    },
+    "./worker": {
+      "import": "./dist/worker/depixelize.worker.js",
+      "types": "./dist/worker/depixelize.worker.d.ts"
+    },
+    "./node": {
+      "import": "./dist/index.node.js",
+      "types": "./dist/index.node.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "wasm",
+    "src"
+  ],
+  "scripts": {
+    "dev": "vite --config demo/vite.config.ts",
+    "build": "vite build && tsc -p tsconfig.node.json && tsc -p tsconfig.deno.json",
+    "build:node": "tsc -p tsconfig.node.json",
+    "build:deno": "tsc -p tsconfig.deno.json",
+    "build:demo": "vite build --config demo/vite.config.ts",
+    "build:all": "npm run build && npm run build:demo",
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "test": "vitest run",
+    "test:node": "node --experimental-strip-types --test test/node/depixelize.node.test.ts test/node/batch.node.test.ts",
+    "test:deno": "deno test --allow-read test/deno/depixelize.deno.test.ts test/deno/batch.deno.test.ts",
+    "test:e2e": "vitest run --config vitest.browser.config.ts",
+    "preview": "vite preview --config demo/vite.config.ts",
+    "clean": "rm -rf dist wasm/*.js wasm/*.wasm cpp/build"
+  },
+  "dependencies": {
+    "comlink": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.13",
+    "@types/pngjs": "^6.0.5",
+    "@vitest/browser-playwright": "^4.0.18",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "vite-plugin-comlink": "^5.1.0",
+    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-top-level-await": "^1.5.0",
+    "vite-plugin-wasm": "^3.4.1",
+    "vitest": "^4.0.18"
+  },
+  "license": "LGPL-2.1-or-later OR GPL-2.0-or-later",
+  "keywords": [
+    "pixel-art",
+    "vectorization",
+    "svg",
+    "wasm",
+    "webassembly",
+    "depixelize",
+    "kopf-lischinski"
+  ]
+}

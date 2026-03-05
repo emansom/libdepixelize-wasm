@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "lib": ["ES2020", "WebWorker"],
+    "types": ["node"]
+  },
+  "include": [
+    "src/core.ts",
+    "src/node.ts",
+    "src/index.deno.ts",
+    "src/types.ts",
+    "src/pool.ts",
+    "src/batch.deno.ts",
+    "src/worker/depixelize.worker-core.ts",
+    "src/worker/depixelize.deno-worker.ts"
+  ]
+}

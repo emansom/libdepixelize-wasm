@@ -1,0 +1,55 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -33,13 +33,21 @@
+ include(CheckCXXSourceCompiles)
+
+ # Find dependencies
+-find_package(Boost 1.60 CONFIG REQUIRED)
+-find_package(double-conversion CONFIG REQUIRED)
+-find_package(PkgConfig REQUIRED)
+-find_package(Cython)
+-find_package(Threads)
+-find_package(GSL REQUIRED)
+-pkg_check_modules(GTK IMPORTED_TARGET gtk4)
+-pkg_check_modules(GLIB IMPORTED_TARGET REQUIRED glib-2.0)
++find_package(Boost 1.60 CONFIG REQUIRED)
++if(NOT TARGET double-conversion::double-conversion)
++    find_package(double-conversion CONFIG REQUIRED)
++endif()
++find_package(Threads)
++if(NOT TARGET GSL::gsl)
++    find_package(GSL REQUIRED)
++endif()
++if(NOT EMSCRIPTEN)
++    find_package(PkgConfig REQUIRED)
++    find_package(Cython)
++    pkg_check_modules(GTK IMPORTED_TARGET gtk4)
++    pkg_check_modules(GLIB IMPORTED_TARGET REQUIRED glib-2.0)
++else()
++    set(GTK_FOUND FALSE)
++endif()
+
+ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -1,10 +1,11 @@
+ add_subdirectory(2geom)
+-add_subdirectory(performance-tests EXCLUDE_FROM_ALL)
+-if(GTK_FOUND)
+-  add_subdirectory(toys EXCLUDE_FROM_ALL)
+-else()
+-  message("Not building toys as they require GTK.")
+-endif()
+-
+-add_subdirectory(cython EXCLUDE_FROM_ALL)
+-add_subdirectory(py2geom EXCLUDE_FROM_ALL)
++if(NOT EMSCRIPTEN)
++    add_subdirectory(performance-tests EXCLUDE_FROM_ALL)
++    if(GTK_FOUND)
++      add_subdirectory(toys EXCLUDE_FROM_ALL)
++    else()
++      message("Not building toys as they require GTK.")
++    endif()
++    add_subdirectory(cython EXCLUDE_FROM_ALL)
++    add_subdirectory(py2geom EXCLUDE_FROM_ALL)
++endif()

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>libdepixelize-wasm Demo</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>libdepixelize-wasm</h1>
+      <p>Kopf-Lischinski pixel art vectorization</p>
+    </header>
+
+    <main>
+      <section class="controls">
+        <div class="upload-zone" id="dropZone">
+          <p>Drop a pixel art image here or <label for="fileInput" class="file-label">choose a file</label></p>
+          <input type="file" id="fileInput" accept="image/png,image/gif,image/bmp,image/webp" hidden />
+        </div>
+
+        <div class="options" id="optionsPanel">
+          <h3>Options</h3>
+          <label>
+            Method
+            <select id="method">
+              <option value="splines">Splines</option>
+              <option value="voronoi" selected>Voronoi</option>
+              <option value="grouped_voronoi">Grouped Voronoi</option>
+            </select>
+          </label>
+          <label>
+            Curves Multiplier
+            <input type="range" id="curvesMultiplier" min="-10" max="10" step="0.2" value="1" />
+            <span id="curvesMultiplierVal">1.0</span>
+          </label>
+          <label>
+            Islands Weight
+            <input type="range" id="islandsWeight" min="-20" max="20" step="1" value="5" />
+            <span id="islandsWeightVal">5</span>
+          </label>
+          <label>
+            Sparse Pixels Multiplier
+            <input type="range" id="sparsePixelsMultiplier" min="-10" max="10" step="0.2" value="1" />
+            <span id="sparsePixelsMultiplierVal">1.0</span>
+          </label>
+          <label>
+            Sparse Pixels Radius
+            <input type="range" id="sparsePixelsRadius" min="2" max="8" step="1" value="4" />
+            <span id="sparsePixelsRadiusVal">4</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="optimize" />
+            Optimize
+          </label>
+        </div>
+      </section>
+
+      <section class="display">
+        <div class="panel">
+          <h3>Original</h3>
+          <canvas id="originalCanvas"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Vectorized</h3>
+          <div id="svgOutput"></div>
+        </div>
+      </section>
+
+      <section class="status-bar" id="statusBar">
+        <span id="statusText">Upload an image to begin</span>
+        <button id="downloadBtn" hidden>Download SVG</button>
+      </section>
+    </main>
+
+    <div class="loading-overlay" id="loadingOverlay" hidden>
+      <div class="spinner"></div>
+      <p>Processing...</p>
+    </div>
+
+    <script type="module" src="main.ts"></script>
+  </body>
+</html>
