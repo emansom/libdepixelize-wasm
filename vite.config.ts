@@ -18,8 +18,31 @@ export default defineConfig({
       fileName: 'index',
     },
     outDir: 'dist',
+    sourcemap: false,
+    minify: 'esbuild',
     rollupOptions: {
       external: ['comlink'],
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false,
+      },
+      output: {
+        compact: true,
+        minifyInternalExports: true,
+        generatedCode: {
+          arrowFunctions: true,
+          constBindings: true,
+          objectShorthand: true,
+        },
+      },
+    },
+    esbuild: {
+      minifyIdentifiers: true,
+      minifyWhitespace: true,
+      minifySyntax: true,
+      treeShaking: true,
+      legalComments: 'none',
     },
   },
 });
