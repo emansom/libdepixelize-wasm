@@ -66,6 +66,13 @@ export function getPool(maxSize?: number): WorkerPool {
   return defaultPool;
 }
 
+export async function destroyPool(): Promise<void> {
+  if (defaultPool) {
+    await defaultPool.destroy();
+    defaultPool = null;
+  }
+}
+
 export async function depixelizeBatch(
   items: ImageDataLike[],
   options?: Partial<DepixelizeOptions> & BatchOptions,
