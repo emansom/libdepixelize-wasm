@@ -98,7 +98,9 @@ static std::string depixelize(
         std::string fill = rgba_to_hex(path.rgba);
         double opacity = path.rgba[3] / 255.0;
 
-        svg << "  <path d=\"" << d << "\" fill=\"" << fill << "\"";
+        // Disable anti-aliasing so adjacent vector shapes meet with sharp,
+        // gap-free edges — matching the crisp look of the original pixel art.
+        svg << "  <path d=\"" << d << "\" fill=\"" << fill << "\" shape-rendering=\"crispEdges\"";
         if (opacity < 1.0) {
             svg << " fill-opacity=\"" << opacity << "\"";
         }
