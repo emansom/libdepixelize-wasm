@@ -1,33 +1,16 @@
-import { defineConfig, type Plugin } from 'vite';
-import { comlink } from 'vite-plugin-comlink';
-import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
+import { defineConfig } from 'vite';
 import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import zlib from 'node:zlib';
-import minifyHtml from '@minify-html/node';
 import { resolve } from 'path';
-
-function htmlMinifyPlugin(): Plugin {
-  return {
-    name: 'html-minify',
-    transformIndexHtml(html) {
-      return minifyHtml
-        .minify(Buffer.from(html), {
-          minify_css: true,
-          minify_js: true,
-        })
-        .toString();
-    },
-  };
-}
+import { htmlMinifyPlugin, copyExternalDeps } from './vite-plugins';
 
 export default defineConfig({
   root: resolve(__dirname),
   plugins: [
-    comlink(),
-    wasm(),
-    topLevelAwait(),
     htmlMinifyPlugin(),
+    copyExternalDeps([
+      { src: resolve(__dirname, '../node_modules/comlink/dist/esm/comlink.mjs'), dest: 'comlink.js' },
+    ]),
     compression({
       algorithms: [
         defineAlgorithm('gzip', {
@@ -52,7 +35,6 @@ export default defineConfig({
     }),
   ],
   worker: {
-    plugins: () => [comlink(), wasm(), topLevelAwait()],
     format: 'es',
   },
   resolve: {
@@ -61,9 +43,11 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'esnext',
     sourcemap: false,
     minify: 'esbuild',
     rollupOptions: {
+      external: ['comlink'],
       treeshake: {
         moduleSideEffects: false,
         propertyReadSideEffects: false,

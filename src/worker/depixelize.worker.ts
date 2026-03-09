@@ -1,4 +1,4 @@
-import * as Comlink from 'comlink';
+// No static Comlink import — loaded dynamically from URL provided by main thread
 import type { DepixelizeOptions, DepixelizeResult } from '../types';
 import type { DepixelizeModule } from '../core';
 import { depixelizeCore } from '../core';
@@ -28,4 +28,12 @@ async function depixelize(
   return depixelizeCore(mod, rgbaPixels, width, height, options);
 }
 
-Comlink.expose({ depixelize });
+// Wait for Comlink URL from main thread, then expose the API
+self.addEventListener('message', async function init(e: MessageEvent) {
+  if (e.data?.__comlinkUrl__) {
+    self.removeEventListener('message', init);
+    const Comlink = await import(/* @vite-ignore */ e.data.__comlinkUrl__);
+    Comlink.expose({ depixelize });
+    self.postMessage({ __ready__: true });
+  }
+});

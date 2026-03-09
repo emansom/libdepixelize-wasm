@@ -1,13 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
-import { comlink } from 'vite-plugin-comlink';
-import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
+import { resolve } from 'path';
+import { copyExternalDeps } from './demo/vite-plugins';
 
 export default defineConfig({
-  plugins: [comlink(), wasm(), topLevelAwait()],
+  plugins: [
+    copyExternalDeps([
+      { src: resolve(__dirname, 'node_modules/comlink/dist/esm/comlink.mjs'), dest: 'comlink.js' },
+    ]),
+  ],
   worker: {
-    plugins: () => [comlink(), wasm(), topLevelAwait()],
     format: 'es',
   },
   test: {
@@ -15,6 +17,7 @@ export default defineConfig({
     browser: {
       provider: playwright(),
       enabled: true,
+      testerHtmlPath: resolve(__dirname, 'test/tester.html'),
       headless: true,
       screenshotFailures: false,
       instances: [

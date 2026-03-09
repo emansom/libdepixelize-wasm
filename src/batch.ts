@@ -19,20 +19,28 @@ const workerRefs = new Map<ProcessFn, { worker: Worker; api: Comlink.Remote<Work
 function createBrowserProcessFn(): Promise<ProcessFn> {
   return new Promise<ProcessFn>((resolve) => {
     const worker = new DepixelizeWorker();
-    const api = Comlink.wrap<WorkerAPI>(worker);
 
-    const fn: ProcessFn = async (pixels, width, height, options) => {
-      const transferred = new Uint8Array(pixels.buffer.slice(0));
-      return api.depixelize(
-        Comlink.transfer(transferred, [transferred.buffer]),
-        width,
-        height,
-        options,
-      );
-    };
+    // Send Comlink's resolved URL so the inline worker can dynamically import it
+    worker.postMessage({ __comlinkUrl__: import.meta.resolve('comlink') });
 
-    workerRefs.set(fn, { worker, api });
-    resolve(fn);
+    // Wait for worker to signal Comlink.expose() is ready
+    worker.addEventListener('message', function onReady(e: MessageEvent) {
+      if (e.data?.__ready__) {
+        worker.removeEventListener('message', onReady);
+        const api = Comlink.wrap<WorkerAPI>(worker);
+        const fn: ProcessFn = async (pixels, width, height, options) => {
+          const transferred = new Uint8Array(pixels.buffer.slice(0));
+          return api.depixelize(
+            Comlink.transfer(transferred, [transferred.buffer]),
+            width,
+            height,
+            options,
+          );
+        };
+        workerRefs.set(fn, { worker, api });
+        resolve(fn);
+      }
+    });
   });
 }
 
