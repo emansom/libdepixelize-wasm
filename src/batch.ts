@@ -1,5 +1,5 @@
-import * as Comlink from 'comlink';
-import DepixelizeWorker from './worker/depixelize.worker?worker&inline';
+import { Remote, releaseProxy, wrap, transfer } from 'comlink';
+import DepixelizeWorker from './worker/depixelize.worker?worker-inline-minified';
 import type { DepixelizeOptions, DepixelizeResult, BatchOptions, DepixelizeBatchResult } from './types';
 import type { ImageDataLike } from './core';
 import { WorkerPool, calculateConcurrency, executeBatch } from './pool';
@@ -14,7 +14,7 @@ interface WorkerAPI {
   ): Promise<DepixelizeResult>;
 }
 
-const workerRefs = new Map<ProcessFn, { worker: Worker; api: Comlink.Remote<WorkerAPI> }>();
+const workerRefs = new Map<ProcessFn, { worker: Worker; api: Remote<WorkerAPI> }>();
 
 function createBrowserProcessFn(): Promise<ProcessFn> {
   return new Promise<ProcessFn>((resolve) => {
@@ -27,11 +27,11 @@ function createBrowserProcessFn(): Promise<ProcessFn> {
     worker.addEventListener('message', function onReady(e: MessageEvent) {
       if (e.data?.__ready__) {
         worker.removeEventListener('message', onReady);
-        const api = Comlink.wrap<WorkerAPI>(worker);
+        const api = wrap<WorkerAPI>(worker);
         const fn: ProcessFn = async (pixels, width, height, options) => {
           const transferred = new Uint8Array(pixels.buffer.slice(0));
           return api.depixelize(
-            Comlink.transfer(transferred, [transferred.buffer]),
+            transfer(transferred, [transferred.buffer]),
             width,
             height,
             options,
@@ -47,7 +47,7 @@ function createBrowserProcessFn(): Promise<ProcessFn> {
 async function destroyBrowserProcessFn(fn: ProcessFn): Promise<void> {
   const ref = workerRefs.get(fn);
   if (ref) {
-    ref.api[Comlink.releaseProxy]();
+    ref.api[releaseProxy]();
     ref.worker.terminate();
     workerRefs.delete(fn);
   }

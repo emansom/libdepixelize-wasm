@@ -10,3 +10,10 @@ declare module '*?worker&url' {
   export default url;
 }
 
+declare module '*?worker-inline-minified' {
+  const workerConstructor: {
+    new (options?: { name?: string }): Worker;
+  };
+  export default workerConstructor;
+}
+

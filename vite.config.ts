@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'path';
+import { workerInlineMinifiedPlugin } from './vite-plugin-worker-inline-minified';
 
 export default defineConfig({
-  plugins: [dts({ tsconfigPath: './tsconfig.build.json' })],
+  plugins: [workerInlineMinifiedPlugin(), dts({ tsconfigPath: './tsconfig.build.json' })],
   worker: {
     format: 'es',
   },

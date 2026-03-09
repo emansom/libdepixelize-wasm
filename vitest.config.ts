@@ -2,9 +2,11 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { resolve } from 'path';
 import { copyExternalDeps } from './demo/vite-plugins';
+import { workerInlineMinifiedPlugin } from './vite-plugin-worker-inline-minified';
 
 export default defineConfig({
   plugins: [
+    workerInlineMinifiedPlugin(),
     copyExternalDeps([
       { src: resolve(__dirname, 'node_modules/comlink/dist/esm/comlink.mjs'), dest: 'comlink.js' },
     ]),
