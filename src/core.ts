@@ -29,6 +29,7 @@ export const METHOD_MAP: Record<DepixelizeOptions['method'], number> = {
   splines: 0,
   voronoi: 1,
   grouped_voronoi: 2,
+  isometric: 3,
 };
 
 export function depixelizeCore(

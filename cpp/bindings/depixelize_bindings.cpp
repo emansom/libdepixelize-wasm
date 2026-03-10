@@ -79,6 +79,11 @@ static std::string depixelize(
         case 2:
             splines = Depixelize::to_grouped_voronoi(image, options);
             break;
+        case 3: {
+            options.isometric_weight = 8;
+            splines = Depixelize::to_isometric(image, options);
+            break;
+        }
         default:
             splines = Depixelize::to_splines(image, options);
             break;

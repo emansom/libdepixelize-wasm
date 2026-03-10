@@ -4,7 +4,7 @@ export interface DepixelizeOptions {
   sparsePixelsMultiplier: number;
   sparsePixelsRadius: number;
   optimize: boolean;
-  method: 'splines' | 'voronoi' | 'grouped_voronoi';
+  method: 'splines' | 'voronoi' | 'grouped_voronoi' | 'isometric';
 }
 
 export interface DepixelizeResult {

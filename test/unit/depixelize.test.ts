@@ -26,6 +26,7 @@ const OUTPUT_MODES = [
   { method: 'grouped_voronoi' as const, optimize: false, label: 'grouped_voronoi' },
   { method: 'splines' as const, optimize: false, label: 'splines (no optimize)' },
   { method: 'splines' as const, optimize: true, label: 'splines (optimized)' },
+  { method: 'isometric' as const, optimize: false, label: 'isometric' },
 ];
 
 describe('depixelizeImage', () => {

@@ -3,10 +3,12 @@ import { compression, defineAlgorithm } from 'vite-plugin-compression2';
 import zlib from 'node:zlib';
 import { resolve } from 'path';
 import { htmlMinifyPlugin, copyExternalDeps } from './vite-plugins';
+import { workerInlineMinifiedPlugin } from '../vite-plugin-worker-inline-minified';
 
 export default defineConfig({
   root: resolve(__dirname),
   plugins: [
+    workerInlineMinifiedPlugin(),
     htmlMinifyPlugin(),
     copyExternalDeps([
       { src: resolve(__dirname, '../node_modules/comlink/dist/esm/comlink.mjs'), dest: 'comlink.js' },

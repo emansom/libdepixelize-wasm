@@ -75,6 +75,74 @@ When changing defaults, update `src/types.ts`, `demo/index.html`, `README.md`, a
 
 `depixelizeImage` (browser) shares the same pool as `depixelizeBatch`. Smart concurrency sizing accounts for memory budget and startup cost vs processing time.
 
+## Git Policy
+
+**IMPORTANT**: git is on the blocked commands list. Claude must NEVER execute git commands directly. ALL git commands must be prompted to the user via AskUserQuestion — the user will execute them manually and confirm completion before Claude continues.
+
+## Patch Modification Workflow
+
+To modify any vendor patch file in `cpp/patches/`, always follow this workflow:
+
+1. **Reset vendor submodule** — prompt user to run git commands:
+   ```bash
+   cd cpp/vendor/<submodule>
+   git checkout <pinned-commit>
+   git clean -fd
+   git checkout .
+   ```
+   Pinned commits are in `scripts/build-wasm.sh` (the `pin_vendor` calls).
+
+2. **Apply current patch** to the vendor copy:
+   ```bash
+   patch -p1 -d cpp/vendor/<submodule> < cpp/patches/<patch-file>.patch
+   ```
+
+3. **Edit source files** directly in `cpp/vendor/<submodule>/`
+
+4. **Backup old patch** — never overwrite existing backups, increment suffix:
+   ```bash
+   cp cpp/patches/<patch>.patch cpp/patches/<patch>_old.patch   # or _old2, _old3...
+   ```
+
+5. **Generate new patch** — prompt user to run git commands:
+   ```bash
+   cd cpp/vendor/<submodule>
+   git diff > ../../patches/<patch-file>.patch
+   ```
+
+6. **Reset vendor** back to clean — prompt user to run git commands:
+   ```bash
+   cd cpp/vendor/<submodule>
+   git checkout .
+   git clean -fd
+   ```
+
+7. **Verify** — run `npm run build:wasm` (applies patch to temp copy during build)
+
+**IMPORTANT**: git is on the blocked commands list. Claude must NEVER execute
+git commands directly. ALL git commands must be prompted to the user via
+AskUserQuestion.
+
+## Isometric Vectorization (Custom Patch)
+
+The isometric mode (`method: 'isometric'`) is a custom extension to libdepixelize,
+implemented as a patch file applied during the WASM build:
+
+- **Patch file**: `cpp/patches/libdepixelize-isometric.patch`
+- **Applied by**: `scripts/build-wasm.sh` line 127 (to temp copy, never modifies submodule)
+- **Test fixtures**: `cpp/patches/libdepixelize-isometric-testdata.patch`
+- **Upstream docs**: `cpp/patches/libdepixelize-isometric-upstream.md`
+- **Research**: `docs/isometric-vectorization-research.md`
+
+The patch adds a `to_isometric()` function with a region-adaptive heuristic that
+detects three pattern families at each crossing-diagonal site:
+1. 2:1 horizontal staircases (isometric X/Z-axis lines)
+2. 1:2 vertical staircases (isometric Y-axis lines)
+3. 1:1 diagonal continuations (forward-facing/normal pixel art)
+
+Multi-step confirmation reduces false positives. The optimization pass accepts
+extended border slopes (2 and 0.5) for dimetric angles.
+
 ## Testing Policy
 
 **Always run both unit and E2E tests after any source code modification:**

@@ -124,6 +124,7 @@ apply_patch() {
 }
 
 apply_patch "$VENDOR_TMP/lib2geom" "$CPP_DIR/patches/lib2geom-emscripten.patch"
+apply_patch "$VENDOR_TMP/libdepixelize" "$CPP_DIR/patches/libdepixelize-isometric.patch"
 
 # Strip unused lib2geom sources for Emscripten (intersection, ellipse, conic,
 # SVG parser/writer, coord formatting — only used by code paths we don't need).

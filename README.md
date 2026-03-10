@@ -20,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
 const result = await depixelizeImage(imageData, {
-  method: 'voronoi',       // 'splines' | 'voronoi' | 'grouped_voronoi'
+  method: 'voronoi',       // 'splines' | 'voronoi' | 'grouped_voronoi' | 'isometric'
   curvesMultiplier: 1.0,
   islandsWeight: 5,
   sparsePixelsMultiplier: 1.0,
@@ -73,7 +73,7 @@ const { results } = await depixelizeBatch(sprites, {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `method` | `'splines' \| 'voronoi' \| 'grouped_voronoi'` | `'voronoi'` | Vectorization method |
+| `method` | `'splines' \| 'voronoi' \| 'grouped_voronoi' \| 'isometric'` | `'voronoi'` | Vectorization method |
 | `curvesMultiplier` | `number` | `1.0` | Weight for curves heuristic |
 | `islandsWeight` | `number` | `5` | Weight for islands heuristic |
 | `sparsePixelsMultiplier` | `number` | `1.0` | Weight for sparse pixels heuristic |
@@ -81,6 +81,22 @@ const { results } = await depixelizeBatch(sprites, {
 | `optimize` | `boolean` | `false` | Enable Kopf-Lischinski path optimization |
 
 > **Note:** Defaults are aligned with Inkscape's Trace Bitmap dialog, the canonical UI for libdepixelize.
+
+### Isometric Mode
+
+The `'isometric'` method is optimized for isometric pixel art (2:1 dimetric projection, ~26.565° diagonals). It uses a region-adaptive heuristic that detects three pattern families at each crossing-diagonal site:
+
+- **2:1 horizontal staircases** — isometric X/Z-axis lines
+- **1:2 vertical staircases** — isometric Y-axis lines
+- **1:1 diagonal continuations** — forward-facing / normal pixel art regions
+
+This makes it rotation-invariant: sprites facing any direction within the isometric plane are handled correctly, with each region receiving the appropriate heuristic treatment.
+
+```typescript
+const result = await depixelizeImage(imageData, {
+  method: 'isometric',
+});
+```
 
 ### `DepixelizeResult`
 

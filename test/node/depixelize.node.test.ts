@@ -131,6 +131,7 @@ const OUTPUT_MODES = [
   { method: 'grouped_voronoi' as const, optimize: false },
   { method: 'splines' as const, optimize: false },
   { method: 'splines' as const, optimize: true },
+  { method: 'isometric' as const, optimize: false },
 ];
 
 for (const image of SAMPLE_IMAGES) {
