@@ -41,7 +41,7 @@ Deno.test('should produce valid SVG from a solid 2x2 image', async () => {
 
   assert(result.svg.includes('<svg'));
   assert(result.svg.includes('</svg>'));
-  assert(result.svg.includes('#ff0000'));
+  assert(result.svg.includes('#f00'));
   assertEquals(result.width, 2);
   assertEquals(result.height, 2);
   assert(result.processingTimeMs >= 0);

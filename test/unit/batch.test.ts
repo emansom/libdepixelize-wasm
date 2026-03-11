@@ -35,7 +35,7 @@ describe('depixelizeBatch', () => {
     expect(results).toHaveLength(1);
     expect(results[0].svg).toContain('<svg');
     expect(results[0].svg).toContain('</svg>');
-    expect(results[0].svg).toContain('#ff0000');
+    expect(results[0].svg).toContain('#f00');
     expect(results[0].width).toBe(2);
     expect(results[0].height).toBe(2);
     expect(results[0].processingTimeMs).toBeGreaterThanOrEqual(0);

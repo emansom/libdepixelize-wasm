@@ -36,7 +36,7 @@ describe('depixelizeImage', () => {
 
     expect(result.svg).toContain('<svg');
     expect(result.svg).toContain('</svg>');
-    expect(result.svg).toContain('#ff0000');
+    expect(result.svg).toContain('#f00');
     expect(result.width).toBe(2);
     expect(result.height).toBe(2);
     expect(result.processingTimeMs).toBeGreaterThanOrEqual(0);

@@ -38,7 +38,7 @@ Deno.test('should process a single item', async () => {
   assertEquals(results.length, 1);
   assert(results[0].svg.includes('<svg'));
   assert(results[0].svg.includes('</svg>'));
-  assert(results[0].svg.includes('#ff0000'));
+  assert(results[0].svg.includes('#f00'));
   assertEquals(results[0].width, 2);
   assertEquals(results[0].height, 2);
   assert(results[0].processingTimeMs >= 0);

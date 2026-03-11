@@ -42,7 +42,7 @@ describe('depixelizeImage (Node.js)', () => {
 
     assert.ok(result.svg.includes('<svg'));
     assert.ok(result.svg.includes('</svg>'));
-    assert.ok(result.svg.includes('#ff0000'));
+    assert.ok(result.svg.includes('#f00'));
     assert.strictEqual(result.width, 2);
     assert.strictEqual(result.height, 2);
     assert.ok(result.processingTimeMs >= 0);

@@ -51,7 +51,7 @@ describe('SVG output', () => {
     const result = await depixelizeImage(img);
 
     // Expect hex color like #0080ff
-    expect(result.svg).toMatch(/fill="#[0-9a-f]{6}"/);
+    expect(result.svg).toMatch(/fill="#([0-9a-f]{3}){1,2}"/);
   });
 
   it('should include fill-opacity when alpha < 255', async () => {

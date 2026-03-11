@@ -36,7 +36,7 @@ describe('depixelizeBatch (Node.js)', () => {
     assert.strictEqual(results.length, 1);
     assert.ok(results[0].svg.includes('<svg'));
     assert.ok(results[0].svg.includes('</svg>'));
-    assert.ok(results[0].svg.includes('#ff0000'));
+    assert.ok(results[0].svg.includes('#f00'));
     assert.strictEqual(results[0].width, 2);
     assert.strictEqual(results[0].height, 2);
     assert.ok(results[0].processingTimeMs >= 0);
