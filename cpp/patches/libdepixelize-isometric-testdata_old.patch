@@ -1,0 +1,68 @@
+diff --git a/test/data/iso_accessory.png b/test/data/iso_accessory.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..a6b87051fbb53e92beaff3381b64b128e1ccceab
+GIT binary patch
+literal 284
+zcmeAS@N?(olHy`uVBq!ia0y~yV31&7V36csV_;y=)_xbuz`*d>)5S5QB5rF)qhN~y
+zPx7++opU9+L}#$>&sgwwu|H$+^v@x)Ox7+hK9_ndd_wULqqcJ2MfcN+tS8E<EuB~L
+zg*)Nu6PfZC>I`8%6-~!)MNVGGa-ipA0n>r3Brk?P#s@z;Wiu^E4`QvnZp_KC_J@(?
+zp|cw%l;-&<cI`A!JTjx!V*bNBTNsZ7d$k%Ud@7FSY3Tpn`e;ree^O_O>ve(a%28$t
+zjuIDaKc@LRPw39Q8~X6voA#rOiVkWq5&NIFiv8he+PwMt3Z^QRU)sW<Y$1$yH{Loe
+qwCm97x!E1{Lb3XJtSs`a{QZ~qa4%s^nZdxoz~JfX=d#Wzp$P!$baWd4
+
+literal 0
+HcmV?d00001
+
+diff --git a/test/data/iso_hair_blue.png b/test/data/iso_hair_blue.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..556195e1fc7016d975115e1eb37718e731c4263e
+GIT binary patch
+literal 280
+zcmeAS@N?(olHy`uVBq!ia0y~yV322EV36WqV_;zLPj2sGU|_iK>Eakt5%+fLZQjEQ
+z0xT;}+U`^rpBk0X$TIu*y&}T|#S`vsR!1ccz2RIW@%j1ln`P6p?C+HA3Ho@cu*PMP
+zfeVMyJ^p6%w3&uat1bTv<Qn_Fn!nK?BfsG@kE!BxwWIz&@3>9Meza=|&y@Yu{adg7
+z6q<X#GjbJc7Vm@Id0Y+Y=Z$>dT#qk~Z#XUL9CBXndEhnGZyQuvG+6HFwmq=@bc^eb
+zXx<$2q*D%?q&hd<5G=d4^`h{!PW>Nq)K2f5mG?>_pr-He{ih+7a{h1bC_lZdFWawP
+n-v2>A!RqvpiBB2ZKC$)XPBCumKBLdTz`)??>gTe~DWM4fW1M;m
+
+literal 0
+HcmV?d00001
+
+diff --git a/test/data/iso_hair_spiky.png b/test/data/iso_hair_spiky.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..6bdf86d7d46d3f6b8d907c4e7049bf2c3b9881ef
+GIT binary patch
+literal 569
+zcmeAS@N?(olHy`uVBq!ia0y~yU{GaXU{K~@V_;wqK7Lq^fq{v^)5S5QBJSzri@k>o
+z1YFjeS1n@ATF6?pP|Pp+Y2@U@;%y2o{nDAOZ@1d&?|%0D`TQ3Xx!paFxorIx7|PcF
+z`De_`?O$)deYW$?=5DWIN$Cjg2BsZW|F>OQvNm@8b+&^2_p9X;;*;~9mow&w&-Ys%
+zC)g|M!0^2IZ`FlMkC@}bcKcin%&6HJBQ>MWP*vti^D5V;xBi;V3uAt;y0MtyftE-9
+z>iHM<iaCeQuDZQPH<I;$jLK)evoYV7Cu;3qwB1WI>5bY{!)JEivwqGyn!cjU;Tem=
+z7H_tB=gS`-i+;^;N}o~dYuU#(84lrZ7sBe@87fj&**t$bQ($V?vOS{5Bp6>mTfFLL
+zWWv+w3{$NHmc@zg510^X*sx_<e&@#eo<BkgUqcvq{$6VNDD&EQ>ZSEI!b(^FmvTit
+zH(;1p?C^iVnt*2=f)Xe5PAy$isoL;y{rXkjNB`9A_fMa;HAvUf)a02FgY1d#3@-Py
+zQyf<EZSM*1{Pucn;^NuAr9QJT_eH#0-w^Xu&i)Sb;kBmipT%xZx0lS#$a;Tj3)8|y
+zQp`^a%C7gcrSE#lBa;7|S0VHBnNw$?Cn!jLo>#N)O}*>kVp+Gqz1mC$w?7A#Zm!sp
+z_b2?Fa#ZNy=c{A6|IA)H`<ls=M;+gGIx>YGTm0vp*J0hqfpz9f1CKrQYS7xZj^&qC
+hL{p9Ii-NyQq0259ReV)eU|?Wi@O1TaS?83{1ON+73pM}%
+
+literal 0
+HcmV?d00001
+
+diff --git a/test/data/iso_torso_striped.png b/test/data/iso_torso_striped.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..26e28358cfc3659c4dc8994f6183cf207f0806d5
+GIT binary patch
+literal 379
+zcmeAS@N?(olHy`uVBq!ia0y~yV31~DU{K&-V_;x-oXKp>z`*F_>Eakt5w~@c<D_N-
+z9+uBle0v)7Kd{Ojog2LESa#*qjVUKv-fD@uY+J4@zCQf??rZx$+x0CLxmWp-EzeKb
+zR>P#&OZdg|t%jbK%Qt7eFAwZ)kv^n0k?DHr-_9>g&W9#`QFebmbCZWh&_Cv796OBe
+zX?&2A?di$AeJejrV>2Iv?gjsjFDX76pZPX%_@DSztMA0WhBtNIg+*<JyA>w4Z<17G
+z?hNrNW7l<@`+Vl)vmCmdTDFmH7L$BpAA3xh=&}Fgv{cQbLjD=8m6P5{xjysUKhdM~
+zy2T{7#K8Tt&rDkPdKOprueoO?IkkP)(0R3dy`iw!*WD*|G}R6pb4h=7owDng#+ldQ
+zp2DItO$EKzZjkIuXnURgWP`O(qDA1dY!|n+0>w(YwN8sP+jUlcH9b{#YR0n3uhs`%
+ndwJ%1jmJ~-x0Q3;RqbbSO-(s#;bG0dz`)??>gTe~DWM4fn{=US
+
+literal 0
+HcmV?d00001
+

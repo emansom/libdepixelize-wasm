@@ -7,8 +7,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
-#include <map>
-#include <vector>
 
 // Append a coordinate as the shortest possible string with ≤2 decimal places.
 // - Integers without decimal: "1" not "1.0"
@@ -37,7 +35,7 @@ static void append_coord(std::string& out, double v) {
     }
 }
 
-// Minimal SVG path serializer using relative commands and H/V shorthand.
+// Minimal SVG path serializer using absolute commands, H/V shorthand, and Z closepath.
 // Only handles LineSegment and QuadraticBezier (the only curve types
 // libdepixelize produces).
 static std::string path_to_svg(const Geom::PathVector& pv) {
@@ -51,61 +49,39 @@ static std::string path_to_svg(const Geom::PathVector& pv) {
         out += ',';
         append_coord(out, ip[1]);
 
-        double cx = ip[0], cy = ip[1];
-        size_t n = path.size();
-        size_t idx = 0;
-
         for (const auto& curve : path) {
-            ++idx;
-
             if (auto* line = dynamic_cast<const Geom::LineSegment*>(&curve)) {
+                Geom::Point sp = (*line)[0];
                 Geom::Point ep = (*line)[1];
 
-                // Skip last line if endpoint equals initial point and path
-                // is closed (the z command already handles the closure)
-                if (path.closed() && idx == n) {
-                    double edx = ep[0] - ip[0];
-                    double edy = ep[1] - ip[1];
-                    if (std::round(edx * 100.0) == 0.0
-                        && std::round(edy * 100.0) == 0.0)
-                        break;
-                }
-
-                double dx = ep[0] - cx;
-                double dy = ep[1] - cy;
-
-                if (std::round(dy * 100.0) == 0.0) {
-                    out += 'h';
-                    append_coord(out, dx);
-                } else if (std::round(dx * 100.0) == 0.0) {
-                    out += 'v';
-                    append_coord(out, dy);
+                if (std::round((ep[1] - sp[1]) * 100.0) == 0.0) {
+                    out += 'H';
+                    append_coord(out, ep[0]);
+                } else if (std::round((ep[0] - sp[0]) * 100.0) == 0.0) {
+                    out += 'V';
+                    append_coord(out, ep[1]);
                 } else {
-                    out += 'l';
-                    append_coord(out, dx);
+                    out += 'L';
+                    append_coord(out, ep[0]);
                     out += ',';
-                    append_coord(out, dy);
+                    append_coord(out, ep[1]);
                 }
-
-                cx = ep[0]; cy = ep[1];
             } else if (auto* quad = dynamic_cast<const Geom::QuadraticBezier*>(&curve)) {
                 Geom::Point cp = (*quad)[1];
                 Geom::Point ep = (*quad)[2];
 
-                out += 'q';
-                append_coord(out, cp[0] - cx);
+                out += 'Q';
+                append_coord(out, cp[0]);
                 out += ',';
-                append_coord(out, cp[1] - cy);
+                append_coord(out, cp[1]);
                 out += ' ';
-                append_coord(out, ep[0] - cx);
+                append_coord(out, ep[0]);
                 out += ',';
-                append_coord(out, ep[1] - cy);
-
-                cx = ep[0]; cy = ep[1];
+                append_coord(out, ep[1]);
             }
         }
 
-        if (path.closed()) out += 'z';
+        out += 'Z';
     }
     return out;
 }
@@ -163,7 +139,8 @@ static std::string depixelize(
             break;
     }
 
-    // Build SVG with same-color path merging and CSS style block
+    // Build SVG — one <path> per polygon (never merge same-color paths,
+    // as merging breaks holes with nonzero fill rule)
     std::string svg;
     svg.reserve(1024);
 
@@ -175,45 +152,25 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path{shape-rendering:crispEdges}</style>\n";
-
-    // Merge paths by color+opacity key, preserving first-occurrence order
-    struct ColorEntry {
-        std::string hex;
-        double opacity;
-        std::string d;
-    };
-    std::vector<uint32_t> color_order;
-    std::map<uint32_t, ColorEntry> color_map;
+    svg += "\">\n<style>path{shape-rendering:crispEdges;stroke-width:.05}</style>\n";
 
     for (const auto& path : splines) {
         std::string d = path_to_svg(path.pathVector);
         if (d.empty()) continue;
 
-        uint32_t key = (static_cast<uint32_t>(path.rgba[0]) << 24)
-                     | (static_cast<uint32_t>(path.rgba[1]) << 16)
-                     | (static_cast<uint32_t>(path.rgba[2]) << 8)
-                     | static_cast<uint32_t>(path.rgba[3]);
+        std::string hex = rgba_to_hex(path.rgba);
+        double opacity = path.rgba[3] / 255.0;
 
-        auto& entry = color_map[key];
-        if (entry.hex.empty()) {
-            color_order.push_back(key);
-            entry.hex = rgba_to_hex(path.rgba);
-            entry.opacity = path.rgba[3] / 255.0;
-        }
-        entry.d += d;
-    }
-
-    for (uint32_t key : color_order) {
-        const auto& entry = color_map[key];
         svg += "<path d=\"";
-        svg += entry.d;
+        svg += d;
         svg += "\" fill=\"";
-        svg += entry.hex;
+        svg += hex;
+        svg += "\" stroke=\"";
+        svg += hex;
         svg += '"';
-        if (entry.opacity < 1.0) {
+        if (opacity < 1.0) {
             char buf[32];
-            int n = snprintf(buf, sizeof(buf), " fill-opacity=\"%g\"", entry.opacity);
+            int n = snprintf(buf, sizeof(buf), " fill-opacity=\"%g\"", opacity);
             svg.append(buf, n);
         }
         svg += "/>\n";

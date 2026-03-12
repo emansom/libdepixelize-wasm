@@ -1,0 +1,398 @@
+diff --git a/include/depixelize/depixelize.h b/include/depixelize/depixelize.h
+index 7120257..9506f57 100644
+--- a/include/depixelize/depixelize.h
++++ b/include/depixelize/depixelize.h
+@@ -21,6 +21,7 @@ struct Options
+     int islands_weight = 5;
+     double sparse_pixels_multiplier = 1;
+     int sparse_pixels_radius = 4;
++    int isometric_weight = 0;
+ 
+     // Other options
+     bool optimize = true;
+@@ -41,6 +42,20 @@ Splines to_grouped_voronoi(const Image &buf,
+ Splines to_splines(const Image &buf,
+                    const Options &options = {});
+ 
++/**
++ * Optimized for isometric pixel art (2:1 dimetric projection).
++ *
++ * Uses an additional heuristic that detects 2:1 and 1:2 staircase diagonal
++ * patterns and biases crossing-edge resolution to preserve them. The result
++ * is then smoothed through B-spline fitting and Kopf-Lischinski optimization,
++ * producing clean diagonal lines and curves.
++ *
++ * If \p options.isometric_weight is 0, a default weight of 8 is used.
++ * \p options.optimize is always treated as true.
++ */
++Splines to_isometric(const Image &buf,
++                     const Options &options = {});
++
+ } // namespace Depixelize
+ 
+ #endif // LIBDEPIXELIZE_DEPIXELIZE_H
+diff --git a/include/depixelize/splines.h b/include/depixelize/splines.h
+index 046784e..004a294 100644
+--- a/include/depixelize/splines.h
++++ b/include/depixelize/splines.h
+@@ -44,7 +44,8 @@ public:
+      * The second level is enabled using \p optimize.
+      */
+     template<typename T>
+-    Splines(const HomogeneousSplines<T> &homogeneousSplines, bool optimize);
++    Splines(const HomogeneousSplines<T> &homogeneousSplines, bool optimize,
++            bool isometric = false);
+ 
+     // Iterators
+     iterator begin()
+diff --git a/src/depixelize/depixelize.cpp b/src/depixelize/depixelize.cpp
+index a3d4ca2..30d645a 100644
+--- a/src/depixelize/depixelize.cpp
++++ b/src/depixelize/depixelize.cpp
+@@ -29,6 +29,9 @@ namespace Heuristics {
+ 
+ static int curves(const PixelGraph &graph, PixelGraph::const_iterator a, PixelGraph::const_iterator b);
+ static bool islands(PixelGraph::const_iterator a, PixelGraph::const_iterator b);
++static int isometric_diagonals(const PixelGraph &graph,
++                               PixelGraph::const_iterator a,
++                               PixelGraph::const_iterator b);
+ 
+ struct SparsePixels
+ {
+@@ -186,6 +189,48 @@ Splines to_splines(const Image &buf,
+ #endif // LIBDEPIXELIZE_WITH_PROFILING
+ }
+ 
++Splines to_isometric(const Image &buf,
++                     const Options &options)
++{
++    Options iso_options = options;
++    if ( iso_options.isometric_weight == 0 )
++        iso_options.isometric_weight = 8;
++    iso_options.optimize = true;
++
++#ifdef LIBDEPIXELIZE_WITH_PROFILING
++    SimplifiedVoronoi<Precision, true> voronoi
++        = _voronoi<Precision, true>(buf, iso_options);
++
++    Clock::time_point profiling_info[2];
++    profiling_info[0] = Clock::now();
++
++    HomogeneousSplines<Precision> splines(voronoi);
++
++    profiling_info[1] = Clock::now();
++    std::cerr << "Depixelize::HomogeneousSplines<" << typeid(Precision).name()
++        << "> construction time: "
++        << std::chrono::duration_cast<std::chrono::microseconds>(
++               profiling_info[1] - profiling_info[0])
++        << std::endl;
++
++    profiling_info[0] = Clock::now();
++
++    Splines ret(splines, true, true);
++
++    profiling_info[1] = Clock::now();
++    std::cerr << "Depixelize::Splines construction time: "
++        << std::chrono::duration_cast<std::chrono::microseconds>(
++               profiling_info[1] - profiling_info[0])
++        << std::endl;
++
++    return ret;
++#else // LIBDEPIXELIZE_WITH_PROFILING
++    HomogeneousSplines<Precision> splines(
++        _voronoi<Precision, true>(buf, iso_options));
++    return Splines(splines, true, true);
++#endif // LIBDEPIXELIZE_WITH_PROFILING
++}
++
+ template<class T, bool adjust_splines>
+ SimplifiedVoronoi<T, adjust_splines>
+ _voronoi(const Image &buf,
+@@ -438,6 +483,14 @@ void _remove_crossing_edges_unsafe(PixelGraph &graph, T &edges,
+         weights[i].second
+             += sparse_pixels.diagonals[SparsePixels::SECONDARY_DIAGONAL].second
+                * options.sparse_pixels_multiplier;
++
++        // Isometric diagonal heuristic
++        if ( options.isometric_weight > 0 ) {
++            weights[i].first += Heuristics::isometric_diagonals(graph, a, d)
++                                * options.isometric_weight;
++            weights[i].second += Heuristics::isometric_diagonals(graph, b, c)
++                                 * options.isometric_weight;
++        }
+     }
+ 
+     // Remove edges with lower weight
+@@ -612,6 +665,69 @@ inline bool Heuristics::islands(PixelGraph::const_iterator a,
+     return a->adjsize() == 1 || b->adjsize() == 1;
+ }
+ 
++/**
++ * Isometric diagonal heuristic.
++ *
++ * Detects if a diagonal connection is part of a 2:1 or 1:2 "staircase"
++ * pattern typical in isometric pixel art (dimetric projection).
++ *
++ * For a diagonal a→b in a 2x2 crossing block, checks whether:
++ * - a has a connected cardinal neighbor on the side away from b
++ * - b has a connected cardinal neighbor on the side away from a
++ *
++ * This confirms the diagonal links two "steps" of a staircase, each step
++ * being 2 pixels wide (horizontal case) or 2 pixels tall (vertical case).
++ *
++ * Returns 0, 1, or 2 depending on how many staircase directions are detected.
++ */
++inline int Heuristics::isometric_diagonals(const PixelGraph &graph,
++                                           PixelGraph::const_iterator a,
++                                           PixelGraph::const_iterator b)
++{
++    int ax = graph.toX(a);
++    int ay = graph.toY(a);
++    int bx = graph.toX(b);
++    int by = graph.toY(b);
++
++    // a and b are diagonally adjacent: |dx|==1, |dy|==1
++    int dx = bx - ax;
++    int dy = by - ay;
++
++    int score = 0;
++
++    // 2:1 horizontal staircase:
++    // a's horizontal neighbor away from b (opposite x-direction)
++    // b's horizontal neighbor away from a (same x-direction as b from a)
++    {
++        int a_hx = ax - dx;
++        int b_hx = bx + dx;
++        if ( a_hx >= 0 && a_hx < graph.width()
++             && b_hx >= 0 && b_hx < graph.width() ) {
++            bool a_conn = (dx > 0) ? a->adj.left : a->adj.right;
++            bool b_conn = (dx > 0) ? b->adj.right : b->adj.left;
++            if ( a_conn && b_conn )
++                ++score;
++        }
++    }
++
++    // 1:2 vertical staircase:
++    // a's vertical neighbor away from b (opposite y-direction)
++    // b's vertical neighbor away from a (same y-direction as b from a)
++    {
++        int a_vy = ay - dy;
++        int b_vy = by + dy;
++        if ( a_vy >= 0 && a_vy < graph.height()
++             && b_vy >= 0 && b_vy < graph.height() ) {
++            bool a_conn = (dy > 0) ? a->adj.top : a->adj.bottom;
++            bool b_conn = (dy > 0) ? b->adj.bottom : b->adj.top;
++            if ( a_conn && b_conn )
++                ++score;
++        }
++    }
++
++    return score;
++}
++
+ } // namespace Depixelize
+ 
+ /*
+diff --git a/src/depixelize/optimization.h b/src/depixelize/optimization.h
+index 40148a0..b29d0b8 100644
+--- a/src/depixelize/optimization.h
++++ b/src/depixelize/optimization.h
+@@ -31,11 +31,29 @@ bool is_valid_border_m(T a)
+         || a == 3 || a == 1;
+ }
+ 
++/**
++ * Extended border slope validator for isometric pixel art.
++ *
++ * In addition to the standard Kopf-Lischinski border slopes (infinity, 3, 1),
++ * also recognizes slopes 2 and 0.5 which correspond to 2:1 and 1:2 dimetric
++ * diagonal lines typical in isometric pixel art.
++ */
++template<class T>
++bool is_valid_border_m_isometric(T a)
++{
++    if ( a < 0 )
++        a *= -1;
++
++    // TODO: alternative behaviour if has no infinity
++    return a == std::numeric_limits<T>::infinity()
++        || a == 3 || a == 2 || a == 1 || a == T(0.5);
++}
++
+ /**
+  * Return true if the four points are considered a border.
+  */
+ template<class T>
+-bool is_border(const Point<T> (&points)[4])
++bool is_border(const Point<T> (&points)[4], bool isometric = false)
+ {
+     T dy[2];
+     T dx[2];
+@@ -63,7 +81,8 @@ bool is_border(const Point<T> (&points)[4])
+         return false;
+     }
+ 
+-    return m[0] == -m[1] && is_valid_border_m(m[0]);
++    return m[0] == -m[1] && (isometric ? is_valid_border_m_isometric(m[0])
++                                       : is_valid_border_m(m[0]));
+ }
+ 
+ template<class T>
+@@ -84,7 +103,8 @@ skip1visible(typename std::vector< Point<T> >::iterator it,
+ template<class T>
+ typename std::vector< Point<T> >::difference_type
+ border_detection(typename std::vector< Point<T> >::iterator it,
+-                 typename std::vector< Point<T> >::iterator end)
++                 typename std::vector< Point<T> >::iterator end,
++                 bool isometric = false)
+ {
+     typename std::vector< Point<T> >::iterator begin = it;
+ 
+@@ -102,7 +122,7 @@ border_detection(typename std::vector< Point<T> >::iterator it,
+         it = skip1visible<T>(it, end);
+     }
+ 
+-    if ( !is_border(last) )
++    if ( !is_border(last, isometric) )
+         return 0;
+ 
+     if ( it == end )
+@@ -121,7 +141,7 @@ border_detection(typename std::vector< Point<T> >::iterator it,
+         }
+         last[3] = *it;
+ 
+-        if ( !is_border(last) )
++        if ( !is_border(last, isometric) )
+             return prev - begin;
+         prev = it;
+     }
+@@ -171,7 +191,8 @@ Point<T> optimization_guess(Point<T> const &p)
+ }
+ 
+ template<class T>
+-std::vector<Point<T>> optimize(std::vector<Point<T>> const &path)
++std::vector<Point<T>> optimize(std::vector<Point<T>> const &path,
++                               bool isometric = false)
+ {
+     std::vector<Point<T>> ret = path;
+ 
+@@ -192,7 +213,7 @@ std::vector<Point<T>> optimize(std::vector<Point<T>> const &path)
+ 
+             {
+                 auto it = ret.begin() + j;
+-                auto skip = border_detection<T>(it, ret.end());
++                auto skip = border_detection<T>(it, ret.end(), isometric);
+                 j += skip;
+                 if ( j == ret.size() )
+                     break;
+diff --git a/src/depixelize/splines-impl.h b/src/depixelize/splines-impl.h
+index 8030167..4ef8638 100644
+--- a/src/depixelize/splines-impl.h
++++ b/src/depixelize/splines-impl.h
+@@ -20,7 +20,8 @@ namespace Depixelize {
+  * this is inlinable and we're not even in C++11 yet.
+  */
+ template<class T>
+-Geom::Path worker_helper(const std::vector< Point<T> > &source1, bool optimize)
++Geom::Path worker_helper(const std::vector< Point<T> > &source1, bool optimize,
++                         bool isometric = false)
+ {
+     using Line = Geom::LineSegment;
+     using Quad = Geom::QuadraticBezier;
+@@ -29,7 +30,7 @@ Geom::Path worker_helper(const std::vector< Point<T> > &source1, bool optimize)
+     std::vector< Point<T> > source;
+ 
+     if ( optimize )
+-        source = Depixelize::optimize(source1);
++        source = Depixelize::optimize(source1, isometric);
+     else
+         source = source1;
+ 
+@@ -75,17 +76,17 @@ Geom::Path worker_helper(const std::vector< Point<T> > &source1, bool optimize)
+  */
+ template<class T>
+ void worker(const typename HomogeneousSplines<T>::Polygon &source,
+-            Splines::Path &dest, bool optimize)
++            Splines::Path &dest, bool optimize, bool isometric = false)
+ {
+     for ( int i = 0 ; i != 4 ; ++i )
+         dest.rgba[i] = source.rgba[i];
+ 
+-    dest.pathVector.push_back(worker_helper(source.vertices, optimize));
++    dest.pathVector.push_back(worker_helper(source.vertices, optimize, isometric));
+ 
+     for ( typename std::vector< std::vector< Point<T> > >::const_iterator
+               it = source.holes.begin(), end = source.holes.end()
+               ; it != end ; ++it ) {
+-        dest.pathVector.push_back(worker_helper(*it, optimize));
++        dest.pathVector.push_back(worker_helper(*it, optimize, isometric));
+     }
+ }
+ 
+@@ -118,7 +119,8 @@ Splines::Splines(const SimplifiedVoronoi<T, adjust_splines> &diagram) :
+ }
+ 
+ template<class T>
+-Splines::Splines(const HomogeneousSplines<T> &homogeneousSplines, bool optimize)
++Splines::Splines(const HomogeneousSplines<T> &homogeneousSplines, bool optimize,
++                 bool isometric)
+     : _paths(homogeneousSplines.size())
+     , _width(homogeneousSplines.width())
+     , _height(homogeneousSplines.height())
+@@ -126,7 +128,7 @@ Splines::Splines(const HomogeneousSplines<T> &homogeneousSplines, bool optimize)
+     // TODO: It should be threaded
+     auto paths_it = begin();
+     for (auto const &h : homogeneousSplines) {
+-        worker<T>(h, *paths_it, optimize);
++        worker<T>(h, *paths_it, optimize, isometric);
+         ++paths_it;
+     }
+ }
+diff --git a/src/tracer/main.cpp b/src/tracer/main.cpp
+index d837566..00b5411 100644
+--- a/src/tracer/main.cpp
++++ b/src/tracer/main.cpp
+@@ -17,7 +17,8 @@ enum Output : int
+     VORONOI = 1,
+     GROUPED_VORONOI,
+     NON_SMOOTH,
+-    SMOOTH
++    SMOOTH,
++    ISOMETRIC
+ };
+ 
+ const char *output;
+@@ -58,6 +59,10 @@ poptOption options[] = {
+      POPT_ARG_VAL, &output_type, NON_SMOOTH,
+      "Preserve staircasing artifacts",
+      nullptr},
++    {"isometric", 'I',
++     POPT_ARG_VAL, &output_type, ISOMETRIC,
++     "Optimized for isometric pixel art (2:1 dimetric projection)",
++     nullptr},
+     {"version", '\0',
+      POPT_ARG_NONE, &show_version, 0,
+      "Displays version and exit",
+@@ -151,6 +156,9 @@ int main(int argc, char const *argv[])
+         case GROUPED_VORONOI:
+             splines = Depixelize::to_grouped_voronoi(img, opts);
+             break;
++        case ISOMETRIC:
++            splines = Depixelize::to_isometric(img, opts);
++            break;
+         default:
+             splines = Depixelize::to_splines(img, opts);
+             break;
+diff --git a/test/sanitize.sh b/test/sanitize.sh
+index ab8b4be..c2ba8e3 100755
+--- a/test/sanitize.sh
++++ b/test/sanitize.sh
+@@ -11,7 +11,7 @@ export LSAN_OPTIONS="suppressions=suppr.txt"
+ echo "leak:popt" > suppr.txt
+ 
+ for f in data/*.png; do
+-    for opt in "-v" "-g" "-n" ""; do
++    for opt in "-v" "-g" "-n" "" "-I"; do
+         ${BIN} "$f" -o /dev/null $opt
+     done
+ done
