@@ -152,7 +152,7 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path{shape-rendering:crispEdges;stroke-width:.05}</style>\n";
+    svg += "\">\n<style>path{shape-rendering:crispEdges;stroke-width:.05;paint-order:stroke}</style>\n";
 
     for (const auto& path : splines) {
         std::string d = path_to_svg(path.pathVector);
