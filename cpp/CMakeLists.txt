@@ -13,20 +13,19 @@ if(NOT DEFINED VENDOR_DIR)
 endif()
 
 # --- 1. double-conversion ---
-if(NOT EMSCRIPTEN)
-    set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-    add_subdirectory(${VENDOR_DIR}/double-conversion dc-build EXCLUDE_FROM_ALL)
+# Built for all platforms: bindings use Grisu3 (double-to-string) for exact roundtrip
+# coordinate serialization. coord.cpp + svg-path-writer.cpp remain excluded from lib2geom.
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(${VENDOR_DIR}/double-conversion dc-build EXCLUDE_FROM_ALL)
 
-    # The vendored CMakeLists creates a malformed alias (double-conversion::::double-conversion).
-    # Create the correct alias that lib2geom expects.
-    if(NOT TARGET double-conversion::double-conversion)
-        add_library(double-conversion::double-conversion ALIAS double-conversion)
-    endif()
-else()
-    # Emscripten: coord.cpp + svg-path-writer.cpp excluded — no double-conversion needed
-    add_library(dc_stub INTERFACE)
-    add_library(double-conversion::double-conversion ALIAS dc_stub)
-    install(TARGETS dc_stub EXPORT 2geom_targets)  # satisfy lib2geom's install(EXPORT)
+# The vendored CMakeLists creates a malformed alias (double-conversion::::double-conversion).
+# Create the correct alias that lib2geom expects.
+if(NOT TARGET double-conversion::double-conversion)
+    add_library(double-conversion::double-conversion ALIAS double-conversion)
+endif()
+
+if(EMSCRIPTEN)
+    install(TARGETS double-conversion EXPORT 2geom_targets)  # satisfy lib2geom's install(EXPORT)
 endif()
 
 # --- 2. GSL (ampl/gsl fork with CMake) ---
@@ -62,10 +61,11 @@ add_subdirectory(${VENDOR_DIR}/libdepixelize libdepixelize-build EXCLUDE_FROM_AL
 
 # --- 5. Shared bindings configuration ---
 set(DEPIXELIZE_SOURCES bindings/depixelize_bindings.cpp)
-set(DEPIXELIZE_LIBS Depixelize::depixelize 2Geom::2geom)
+set(DEPIXELIZE_LIBS Depixelize::depixelize 2Geom::2geom double-conversion::double-conversion)
 set(DEPIXELIZE_INCLUDES
     ${VENDOR_DIR}/libdepixelize/include
     ${VENDOR_DIR}/lib2geom/include
+    ${VENDOR_DIR}/double-conversion
 )
 
 # Common Emscripten link flags (shared by all WASM targets)
@@ -115,6 +115,7 @@ if(EMSCRIPTEN)
     # Apply shared compile flags to dependencies
     target_compile_options(2geom PRIVATE ${WASM_COMMON_COMPILE_FLAGS} "-Wno-unused-const-variable")
     target_compile_options(depixelize PRIVATE "-Oz" "-flto")
+    target_compile_options(double-conversion PRIVATE "-Oz" "-flto")
 
     # Fix Boost.Numeric.Interval: shadow hw_rounding.hpp with WASM-compatible version
     # that forces C99 fesetround() fallback (Emscripten defines BOOST_NO_FENV_H in
