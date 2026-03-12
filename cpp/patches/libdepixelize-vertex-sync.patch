@@ -1,0 +1,145 @@
+diff --git a/src/depixelize/splines-impl.h b/src/depixelize/splines-impl.h
+--- a/src/depixelize/splines-impl.h
++++ b/src/depixelize/splines-impl.h
+@@ -12,6 +12,8 @@
+ #include "splines.h"
+ #include "homogeneoussplines.h"
+ #include "optimization.h"
++#include <unordered_map>
++#include <cstring>
+ 
+ namespace Depixelize {
+ 
+@@ -125,12 +127,128 @@
+     , _width(homogeneousSplines.width())
+     , _height(homogeneousSplines.height())
+ {
+-    // TODO: It should be threaded
+-    auto paths_it = begin();
++    if ( !optimize ) {
++        // No optimization: exact half-integer grid, zero gaps inherently
++        auto paths_it = begin();
++        for (auto const &h : homogeneousSplines) {
++            worker<T>(h, *paths_it, false, isometric);
++            ++paths_it;
++        }
++        return;
++    }
++
++    // === Phase 1: Optimize all vertex lists independently ===
++    struct OptimizedPoly {
++        std::vector< Point<T> > vertices;
++        std::vector< std::vector< Point<T> > > holes;
++    };
++    std::vector<OptimizedPoly> optimized;
++    optimized.reserve(homogeneousSplines.size());
++
+     for (auto const &h : homogeneousSplines) {
+-        worker<T>(h, *paths_it, optimize, isometric);
+-        ++paths_it;
++        OptimizedPoly op;
++        op.vertices = Depixelize::optimize(h.vertices, isometric);
++        op.holes.reserve(h.holes.size());
++        for (auto const &hole : h.holes) {
++            op.holes.push_back(Depixelize::optimize(hole, isometric));
++        }
++        optimized.push_back(std::move(op));
++    }
++
++    // === Phase 2: Build sync map from pre-optimization coordinates ===
++    struct PairHash {
++        size_t operator()(std::pair<uint64_t,uint64_t> const& p) const {
++            return p.first ^ (p.second * 0x9e3779b97f4a7c15ULL);
++        }
++    };
++    using Key = std::pair<uint64_t, uint64_t>;
++    std::unordered_map<Key, std::pair<T, T>, PairHash> sync_map;
++
++    auto to_bits = [](T v) -> uint64_t {
++        uint64_t b = 0;
++        std::memcpy(&b, &v, sizeof(T));
++        return b;
++    };
++
++    {
++        size_t poly_idx = 0;
++        for (auto const &h : homogeneousSplines) {
++            auto const &orig_verts = h.vertices;
++            auto const &opt_verts = optimized[poly_idx].vertices;
++            for (size_t i = 0; i < orig_verts.size(); ++i) {
++                if ( orig_verts[i].visible && orig_verts[i].smooth ) {
++                    Key key(to_bits(orig_verts[i].x), to_bits(orig_verts[i].y));
++                    sync_map.emplace(key, std::make_pair(opt_verts[i].x, opt_verts[i].y));
++                }
++            }
++            for (size_t hi = 0; hi < h.holes.size(); ++hi) {
++                auto const &horig = h.holes[hi];
++                auto const &hopt = optimized[poly_idx].holes[hi];
++                for (size_t i = 0; i < horig.size(); ++i) {
++                    if ( horig[i].visible && horig[i].smooth ) {
++                        Key key(to_bits(horig[i].x), to_bits(horig[i].y));
++                        sync_map.emplace(key, std::make_pair(hopt[i].x, hopt[i].y));
++                    }
++                }
++            }
++            ++poly_idx;
++        }
+     }
++
++    // === Phase 3: Apply sync map to all optimized vertex lists ===
++    {
++        size_t poly_idx = 0;
++        for (auto const &h : homogeneousSplines) {
++            auto const &orig_verts = h.vertices;
++            auto &opt_verts = optimized[poly_idx].vertices;
++            for (size_t i = 0; i < orig_verts.size(); ++i) {
++                if ( orig_verts[i].visible && orig_verts[i].smooth ) {
++                    Key key(to_bits(orig_verts[i].x), to_bits(orig_verts[i].y));
++                    auto it = sync_map.find(key);
++                    if ( it != sync_map.end() ) {
++                        opt_verts[i].x = it->second.first;
++                        opt_verts[i].y = it->second.second;
++                    }
++                }
++            }
++            for (size_t hi = 0; hi < h.holes.size(); ++hi) {
++                auto const &horig = h.holes[hi];
++                auto &hopt = optimized[poly_idx].holes[hi];
++                for (size_t i = 0; i < horig.size(); ++i) {
++                    if ( horig[i].visible && horig[i].smooth ) {
++                        Key key(to_bits(horig[i].x), to_bits(horig[i].y));
++                        auto it = sync_map.find(key);
++                        if ( it != sync_map.end() ) {
++                            hopt[i].x = it->second.first;
++                            hopt[i].y = it->second.second;
++                        }
++                    }
++                }
++            }
++            ++poly_idx;
++        }
++    }
++
++    // === Phase 4: Generate curves from synchronized vertices ===
++    {
++        auto paths_it = begin();
++        size_t poly_idx = 0;
++        for (auto const &h : homogeneousSplines) {
++            Splines::Path &dest = *paths_it;
++            for ( int i = 0 ; i != 4 ; ++i )
++                dest.rgba[i] = h.rgba[i];
++
++            dest.pathVector.push_back(
++                worker_helper(optimized[poly_idx].vertices, false));
++            for (auto const &hole : optimized[poly_idx].holes) {
++                dest.pathVector.push_back(worker_helper(hole, false));
++            }
++
++            ++paths_it;
++            ++poly_idx;
++        }
++    }
++
+ }
+ 
+ } // namespace Depixelize

@@ -8,10 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cmath>
-#include <algorithm>
 #include <cstring>
-#include <vector>
-#include <unordered_map>
 
 // Serialize coordinate as shortest string that roundtrips to the same double.
 // Uses Grisu3 algorithm via double-conversion for maximum precision.
@@ -37,114 +34,15 @@ static void append_coord(std::string& out, double v) {
     }
 }
 
-// Cross-path vertex snapper: clusters nearby vertices and maps them to
-// their centroid, ensuring shared boundary vertices become bit-identical.
-struct PointSnapper {
-    static constexpr double EPSILON = 0.2;
-
-    struct Entry {
-        double x, y;
-        int parent;  // union-find
-    };
-
-    std::vector<Entry> pts;
-
-    struct PairHash {
-        size_t operator()(std::pair<uint64_t,uint64_t> const& p) const {
-            return p.first ^ (p.second * 0x9e3779b97f4a7c15ULL);
-        }
-    };
-    std::unordered_map<std::pair<uint64_t,uint64_t>, Geom::Point, PairHash> snap_map;
-
-    static uint64_t to_bits(double v) {
-        uint64_t b; memcpy(&b, &v, 8); return b;
-    }
-
-    int find(int i) {
-        while (pts[i].parent != i) {
-            pts[i].parent = pts[pts[i].parent].parent;
-            i = pts[i].parent;
-        }
-        return i;
-    }
-
-    void unite(int a, int b) {
-        a = find(a); b = find(b);
-        if (a != b) pts[b].parent = a;
-    }
-
-    void collect(const Depixelize::Splines& splines) {
-        for (const auto& sp : splines) {
-            for (const auto& path : sp.pathVector) {
-                add(path.initialPoint());
-                for (const auto& curve : path) {
-                    add(curve.finalPoint());
-                    if (auto* q = dynamic_cast<const Geom::QuadraticBezier*>(&curve))
-                        add((*q)[1]); // control point
-                }
-            }
-        }
-    }
-
-    void add(Geom::Point p) {
-        int idx = static_cast<int>(pts.size());
-        pts.push_back({p[0], p[1], idx});
-    }
-
-    void build() {
-        // Sort indices by X for sweep-line clustering
-        std::vector<int> order(pts.size());
-        for (int i = 0; i < (int)pts.size(); i++) order[i] = i;
-        std::sort(order.begin(), order.end(),
-            [&](int a, int b) { return pts[a].x < pts[b].x; });
-
-        for (int i = 0; i < (int)order.size(); i++) {
-            for (int j = i + 1; j < (int)order.size(); j++) {
-                if (pts[order[j]].x - pts[order[i]].x > EPSILON) break;
-                double dy = std::abs(pts[order[i]].y - pts[order[j]].y);
-                if (dy < EPSILON) unite(order[i], order[j]);
-            }
-        }
-
-        // Compute cluster centroids
-        std::unordered_map<int, std::pair<double,double>> sum;
-        std::unordered_map<int, int> count;
-        for (int i = 0; i < (int)pts.size(); i++) {
-            int root = find(i);
-            sum[root].first += pts[i].x;
-            sum[root].second += pts[i].y;
-            count[root]++;
-        }
-
-        // Build snap lookup
-        for (int i = 0; i < (int)pts.size(); i++) {
-            int root = find(i);
-            if (count[root] <= 1) continue; // singleton, no snapping needed
-            auto key = std::make_pair(to_bits(pts[i].x), to_bits(pts[i].y));
-            Geom::Point centroid(
-                sum[root].first / count[root],
-                sum[root].second / count[root]
-            );
-            snap_map[key] = centroid;
-        }
-    }
-
-    Geom::Point snap(Geom::Point p) const {
-        auto key = std::make_pair(to_bits(p[0]), to_bits(p[1]));
-        auto it = snap_map.find(key);
-        return (it != snap_map.end()) ? it->second : p;
-    }
-};
-
 // Minimal SVG path serializer using absolute commands, H/V shorthand, and Z closepath.
 // Only handles LineSegment and QuadraticBezier (the only curve types
 // libdepixelize produces).
-static std::string path_to_svg(const Geom::PathVector& pv, const PointSnapper& snapper) {
+static std::string path_to_svg(const Geom::PathVector& pv) {
     std::string out;
     out.reserve(256);
 
     for (const auto& path : pv) {
-        Geom::Point ip = snapper.snap(path.initialPoint());
+        Geom::Point ip = path.initialPoint();
         out += 'M';
         append_coord(out, ip[0]);
         out += ',';
@@ -152,8 +50,8 @@ static std::string path_to_svg(const Geom::PathVector& pv, const PointSnapper& s
 
         for (const auto& curve : path) {
             if (auto* line = dynamic_cast<const Geom::LineSegment*>(&curve)) {
-                Geom::Point sp = snapper.snap((*line)[0]);
-                Geom::Point ep = snapper.snap((*line)[1]);
+                Geom::Point sp = (*line)[0];
+                Geom::Point ep = (*line)[1];
 
                 if (std::abs(ep[1] - sp[1]) < 1e-6) {
                     out += 'H';
@@ -168,8 +66,8 @@ static std::string path_to_svg(const Geom::PathVector& pv, const PointSnapper& s
                     append_coord(out, ep[1]);
                 }
             } else if (auto* quad = dynamic_cast<const Geom::QuadraticBezier*>(&curve)) {
-                Geom::Point cp = snapper.snap((*quad)[1]);
-                Geom::Point ep = snapper.snap((*quad)[2]);
+                Geom::Point cp = (*quad)[1];
+                Geom::Point ep = (*quad)[2];
 
                 out += 'Q';
                 append_coord(out, cp[0]);
@@ -240,15 +138,10 @@ static std::string depixelize(
             break;
     }
 
-    // Snap shared boundary vertices to identical coordinates
-    PointSnapper snapper;
-    snapper.collect(splines);
-    snapper.build();
-
     // Build SVG — one <path> per polygon (never merge same-color paths,
     // as merging breaks holes with nonzero fill rule)
     std::string svg;
-    svg.reserve(1024);
+    svg.reserve(1024 + width * height * 20);
 
     svg += "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ";
     svg += std::to_string(splines.width());
@@ -258,10 +151,50 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path{shape-rendering:crispEdges}</style>\n";
+    svg += "\">\n<style>path,rect{shape-rendering:crispEdges}</style>\n";
+
+    // Background pixel rects — gap prevention layer
+    svg += "<g>\n";
+    for (int y = 0; y < height; ++y) {
+        int x = 0;
+        while (x < width) {
+            int base = (y * width + x) * n_channels;
+            uint8_t r = pixels[base], g = pixels[base+1], b = pixels[base+2];
+            uint8_t a = (n_channels >= 4) ? pixels[base+3] : 255;
+
+            if (a == 0) { ++x; continue; }  // skip transparent
+
+            int run_start = x;
+            while (x < width) {
+                int bi = (y * width + x) * n_channels;
+                uint8_t qr = pixels[bi], qg = pixels[bi+1], qb = pixels[bi+2];
+                uint8_t qa = (n_channels >= 4) ? pixels[bi+3] : 255;
+                if (qr != r || qg != g || qb != b || qa != a) break;
+                ++x;
+            }
+
+            uint8_t rgba[4] = {r, g, b, a};
+            svg += "<rect x=\"";
+            svg += std::to_string(run_start);
+            svg += "\" y=\"";
+            svg += std::to_string(y);
+            svg += "\" width=\"";
+            svg += std::to_string(x - run_start);
+            svg += "\" height=\"1\" fill=\"";
+            svg += rgba_to_hex(rgba);
+            svg += "\"";
+            if (a < 255) {
+                char buf[32];
+                int n = snprintf(buf, sizeof(buf), " fill-opacity=\"%g\"", a / 255.0);
+                svg.append(buf, n);
+            }
+            svg += "/>\n";
+        }
+    }
+    svg += "</g>\n";
 
     for (const auto& path : splines) {
-        std::string d = path_to_svg(path.pathVector, snapper);
+        std::string d = path_to_svg(path.pathVector);
         if (d.empty()) continue;
 
         std::string hex = rgba_to_hex(path.rgba);
