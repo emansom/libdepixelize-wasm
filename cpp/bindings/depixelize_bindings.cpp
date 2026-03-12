@@ -8,12 +8,12 @@
 #include <cstdio>
 #include <cmath>
 
-// Append a coordinate as the shortest possible string with ≤2 decimal places.
+// Append a coordinate as the shortest possible string with ≤4 decimal places.
 // - Integers without decimal: "1" not "1.0"
 // - Strip trailing zeros: ".5" not ".50"
 // - Strip leading zero for (-1,1): ".5" not "0.5", "-.5" not "-0.5"
 static void append_coord(std::string& out, double v) {
-    double rounded = std::round(v * 100.0) / 100.0;
+    double rounded = std::round(v * 10000.0) / 10000.0;
     int iv = static_cast<int>(rounded);
     if (rounded == static_cast<double>(iv)) {
         char buf[16];
@@ -22,7 +22,7 @@ static void append_coord(std::string& out, double v) {
         return;
     }
     char buf[24];
-    int n = snprintf(buf, sizeof(buf), "%.2f", rounded);
+    int n = snprintf(buf, sizeof(buf), "%.4f", rounded);
     while (n > 0 && buf[n-1] == '0') n--;
     if (n > 0 && buf[n-1] == '.') n--;
     if (n >= 2 && buf[0] == '0' && buf[1] == '.') {
@@ -54,10 +54,10 @@ static std::string path_to_svg(const Geom::PathVector& pv) {
                 Geom::Point sp = (*line)[0];
                 Geom::Point ep = (*line)[1];
 
-                if (std::round((ep[1] - sp[1]) * 100.0) == 0.0) {
+                if (std::round((ep[1] - sp[1]) * 10000.0) == 0.0) {
                     out += 'H';
                     append_coord(out, ep[0]);
-                } else if (std::round((ep[0] - sp[0]) * 100.0) == 0.0) {
+                } else if (std::round((ep[0] - sp[0]) * 10000.0) == 0.0) {
                     out += 'V';
                     append_coord(out, ep[1]);
                 } else {
@@ -152,7 +152,7 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path{shape-rendering:crispEdges}</style>\n";
+    svg += "\">\n";
 
     for (const auto& path : splines) {
         std::string d = path_to_svg(path.pathVector);

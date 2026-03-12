@@ -1,6 +1,6 @@
 {
   "name": "libdepixelize-wasm",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "WebAssembly bindings for libdepixelize — Kopf-Lischinski pixel art vectorization",
   "type": "module",
   "main": "./dist/index.js",
