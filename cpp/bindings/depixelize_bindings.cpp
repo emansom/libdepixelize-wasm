@@ -174,6 +174,9 @@ static std::string depixelize(
             }
 
             uint8_t rgba[4] = {r, g, b, a};
+            std::string hex = rgba_to_hex(rgba);
+
+            // Square base rect — gap-free pixel coverage
             svg += "<rect x=\"";
             svg += std::to_string(run_start);
             svg += "\" y=\"";
@@ -181,6 +184,60 @@ static std::string depixelize(
             svg += "\" width=\"";
             svg += std::to_string(x - run_start);
             svg += "\" height=\"1\" fill=\"";
+            svg += hex;
+            svg += "\"";
+            if (a < 255) {
+                char buf[32];
+                int n = snprintf(buf, sizeof(buf), " fill-opacity=\"%g\"", a / 255.0);
+                svg.append(buf, n);
+            }
+            svg += "/>\n";
+
+            // Rounded rect — smooth edges where paths have sub-pixel gaps
+            svg += "<rect x=\"";
+            svg += std::to_string(run_start);
+            svg += "\" y=\"";
+            svg += std::to_string(y);
+            svg += "\" width=\"";
+            svg += std::to_string(x - run_start);
+            svg += "\" height=\"1\" rx=\".5\" ry=\".5\" fill=\"";
+            svg += hex;
+            svg += "\"";
+            if (a < 255) {
+                char buf[32];
+                int n = snprintf(buf, sizeof(buf), " fill-opacity=\"%g\"", a / 255.0);
+                svg.append(buf, n);
+            }
+            svg += "/>\n";
+        }
+    }
+    // Vertical pixel rects — complement horizontal rects at junctions
+    for (int x = 0; x < width; ++x) {
+        int y = 0;
+        while (y < height) {
+            int base = (y * width + x) * n_channels;
+            uint8_t r = pixels[base], g = pixels[base+1], b = pixels[base+2];
+            uint8_t a = (n_channels >= 4) ? pixels[base+3] : 255;
+
+            if (a == 0) { ++y; continue; }
+
+            int run_start = y;
+            while (y < height) {
+                int bi = (y * width + x) * n_channels;
+                uint8_t qr = pixels[bi], qg = pixels[bi+1], qb = pixels[bi+2];
+                uint8_t qa = (n_channels >= 4) ? pixels[bi+3] : 255;
+                if (qr != r || qg != g || qb != b || qa != a) break;
+                ++y;
+            }
+
+            uint8_t rgba[4] = {r, g, b, a};
+            svg += "<rect x=\"";
+            svg += std::to_string(x);
+            svg += "\" y=\"";
+            svg += std::to_string(run_start);
+            svg += "\" width=\"1\" height=\"";
+            svg += std::to_string(y - run_start);
+            svg += "\" rx=\".5\" ry=\".5\" fill=\"";
             svg += rgba_to_hex(rgba);
             svg += "\"";
             if (a < 255) {

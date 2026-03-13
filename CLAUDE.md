@@ -143,6 +143,21 @@ detects three pattern families at each crossing-diagonal site:
 Multi-step confirmation reduces false positives. The optimization pass accepts
 extended border slopes (2 and 0.5) for dimetric angles.
 
+## Gap Prevention Policy
+
+Background pixel rects prevent white gaps between vectorized paths:
+
+- Three rect layers: square base rects (gap-free), horizontal rounded rects
+  (`rx=".5" ry=".5"` for smooth edges), and vertical rounded rects
+- Square base rects guarantee full pixel coverage on integer coordinates;
+  rounded rects paint on top for visual smoothing at color boundaries
+- `shape-rendering: crispEdges` on both paths and rects
+- Rects are always layered below the vectorized paths
+- E2E gap detection test renders SVG at scaled resolution (not intrinsic
+  size) to detect sub-pixel gaps visible at browser zoom
+- E2E gap detection test must always pass with zero white pixels
+- The white threshold in the gap detection test must never be adjusted
+
 ## Testing Policy
 
 **Always run both unit and E2E tests after any source code modification:**

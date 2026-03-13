@@ -70,7 +70,12 @@ async function assertNoWhiteGaps(scale: number): Promise<void> {
 
   // Serialize SVG to blob for rendering
   const serializer = new XMLSerializer();
-  const svgStr = serializer.serializeToString(svgEl);
+  // Scale SVG dimensions so the browser rasterizes at target resolution,
+  // not at intrinsic pixel size then upscaled.
+  const svgClone = svgEl.cloneNode(true) as SVGSVGElement;
+  svgClone.setAttribute('width', String(w * scale));
+  svgClone.setAttribute('height', String(h * scale));
+  const svgStr = serializer.serializeToString(svgClone);
   const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
@@ -79,6 +84,7 @@ async function assertNoWhiteGaps(scale: number): Promise<void> {
   renderCanvas.width = w * scale;
   renderCanvas.height = h * scale;
   const renderCtx = renderCanvas.getContext('2d')!;
+  renderCtx.imageSmoothingEnabled = false;
   renderCtx.fillStyle = '#ffffff';
   renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
 
@@ -144,7 +150,7 @@ describe('Gap detection — isometric', () => {
 
       const file = await loadSofaFixture();
       await uploadAndWait(file);
-      await assertNoWhiteGaps(5);
+      await assertNoWhiteGaps(10);
     },
   );
 
@@ -160,7 +166,7 @@ describe('Gap detection — isometric', () => {
 
       const file = await loadSofaFixture();
       await uploadAndWait(file);
-      await assertNoWhiteGaps(5);
+      await assertNoWhiteGaps(10);
     },
   );
 });
