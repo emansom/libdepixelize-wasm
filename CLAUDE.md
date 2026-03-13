@@ -151,8 +151,10 @@ Background pixel rects prevent white gaps between vectorized paths:
   (`rx=".5" ry=".5"` for smooth edges), and vertical rounded rects
 - Square base rects guarantee full pixel coverage on integer coordinates;
   rounded rects paint on top for visual smoothing at color boundaries
-- `shape-rendering: crispEdges` on paths only (sharp pixel-art edges);
-  rects use default rendering to prevent snapping gaps at fractional DPIs
+- `image-rendering: optimizeQuality` on svg root for quality rendering
+- `shape-rendering: geometricPrecision` on paths and rects by default
+  (fractional DPR fallback); overridden to `crispEdges` at integer DPRs
+  (1–4x) via `@media (resolution)` query for optimal pixel snapping
 - Rects are always layered below the vectorized paths
 - E2E gap detection test renders SVG at scaled resolution (not intrinsic
   size) to detect sub-pixel gaps visible at browser zoom

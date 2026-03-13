@@ -151,7 +151,20 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path{shape-rendering:crispEdges}</style>\n";
+    // DPI-adaptive rendering: at fractional devicePixelRatios (1.25x, 1.5x, etc.),
+    // crispEdges causes pixel-snapping gaps between adjacent rects/paths.
+    // Use geometricPrecision as default (anti-aliased, gap-free at any DPR),
+    // then override to crispEdges at integer DPRs where snapping is exact.
+    // image-rendering:optimizeQuality hints the browser to prefer quality
+    // for any raster operations (e.g. embedded images, filter effects).
+    // The @media(resolution) query maps directly to window.devicePixelRatio.
+    svg += "\">\n<style>"
+           "svg{image-rendering:optimizeQuality}"
+           "path,rect{shape-rendering:geometricPrecision}"
+           "@media(resolution:1dppx),(resolution:2dppx),"
+           "(resolution:3dppx),(resolution:4dppx)"
+           "{path,rect{shape-rendering:crispEdges}}"
+           "</style>\n";
 
     // Background pixel rects — gap prevention layer
     svg += "<g>\n";
