@@ -151,7 +151,7 @@ static std::string depixelize(
     svg += std::to_string(splines.width());
     svg += "\" height=\"";
     svg += std::to_string(splines.height());
-    svg += "\">\n<style>path,rect{shape-rendering:crispEdges}</style>\n";
+    svg += "\">\n<style>path{shape-rendering:crispEdges}</style>\n";
 
     // Background pixel rects — gap prevention layer
     svg += "<g>\n";

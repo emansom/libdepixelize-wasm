@@ -70,23 +70,27 @@ async function assertNoWhiteGaps(scale: number): Promise<void> {
 
   // Serialize SVG to blob for rendering
   const serializer = new XMLSerializer();
+  // Canvas dimensions (must be integers)
+  const cw = Math.ceil(w * scale);
+  const ch = Math.ceil(h * scale);
+
   // Scale SVG dimensions so the browser rasterizes at target resolution,
   // not at intrinsic pixel size then upscaled.
   const svgClone = svgEl.cloneNode(true) as SVGSVGElement;
-  svgClone.setAttribute('width', String(w * scale));
-  svgClone.setAttribute('height', String(h * scale));
+  svgClone.setAttribute('width', String(cw));
+  svgClone.setAttribute('height', String(ch));
   const svgStr = serializer.serializeToString(svgClone);
   const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
   // Render SVG at scale on white-background canvas
   const renderCanvas = document.createElement('canvas');
-  renderCanvas.width = w * scale;
-  renderCanvas.height = h * scale;
+  renderCanvas.width = cw;
+  renderCanvas.height = ch;
   const renderCtx = renderCanvas.getContext('2d')!;
   renderCtx.imageSmoothingEnabled = false;
   renderCtx.fillStyle = '#ffffff';
-  renderCtx.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
+  renderCtx.fillRect(0, 0, cw, ch);
 
   const img = new Image();
   await new Promise<void>((resolve, reject) => {
@@ -107,11 +111,13 @@ async function assertNoWhiteGaps(scale: number): Promise<void> {
       if (!mask[y * w + x]) continue;
 
       // Check all sub-pixels within this pixel's scaled region
-      for (let sy = 0; sy < scale; sy++) {
-        for (let sx = 0; sx < scale; sx++) {
-          const rx = x * scale + sx;
-          const ry = y * scale + sy;
-          const ri = (ry * renderCanvas.width + rx) * 4;
+      const rx_start = Math.floor(x * scale);
+      const rx_end = Math.min(Math.ceil((x + 1) * scale), cw);
+      const ry_start = Math.floor(y * scale);
+      const ry_end = Math.min(Math.ceil((y + 1) * scale), ch);
+      for (let ry = ry_start; ry < ry_end; ry++) {
+        for (let rx = rx_start; rx < rx_end; rx++) {
+          const ri = (ry * cw + rx) * 4;
           const r = rendered.data[ri];
           const g = rendered.data[ri + 1];
           const b = rendered.data[ri + 2];
@@ -167,6 +173,36 @@ describe('Gap detection — isometric', () => {
       const file = await loadSofaFixture();
       await uploadAndWait(file);
       await assertNoWhiteGaps(10);
+    },
+  );
+
+  it(
+    'isometric with optimize=false has no gaps at 1.5x (fractional DPI)',
+    { timeout: 60000 },
+    async () => {
+      const methodSelect = document.querySelector('#method') as HTMLSelectElement;
+      const optimizeCheck = document.querySelector('#optimize') as HTMLInputElement;
+      methodSelect.value = 'isometric';
+      optimizeCheck.checked = false;
+
+      const file = await loadSofaFixture();
+      await uploadAndWait(file);
+      await assertNoWhiteGaps(1.5);
+    },
+  );
+
+  it(
+    'isometric with optimize=false has no gaps at 2.5x (fractional DPI)',
+    { timeout: 60000 },
+    async () => {
+      const methodSelect = document.querySelector('#method') as HTMLSelectElement;
+      const optimizeCheck = document.querySelector('#optimize') as HTMLInputElement;
+      methodSelect.value = 'isometric';
+      optimizeCheck.checked = false;
+
+      const file = await loadSofaFixture();
+      await uploadAndWait(file);
+      await assertNoWhiteGaps(2.5);
     },
   );
 });

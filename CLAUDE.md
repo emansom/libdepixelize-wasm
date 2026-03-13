@@ -151,10 +151,12 @@ Background pixel rects prevent white gaps between vectorized paths:
   (`rx=".5" ry=".5"` for smooth edges), and vertical rounded rects
 - Square base rects guarantee full pixel coverage on integer coordinates;
   rounded rects paint on top for visual smoothing at color boundaries
-- `shape-rendering: crispEdges` on both paths and rects
+- `shape-rendering: crispEdges` on paths only (sharp pixel-art edges);
+  rects use default rendering to prevent snapping gaps at fractional DPIs
 - Rects are always layered below the vectorized paths
 - E2E gap detection test renders SVG at scaled resolution (not intrinsic
   size) to detect sub-pixel gaps visible at browser zoom
+- E2E tests verify both integer (10x) and fractional (1.5x, 2.5x) scales
 - E2E gap detection test must always pass with zero white pixels
 - The white threshold in the gap detection test must never be adjusted
 
